@@ -1,10 +1,12 @@
 @import '@fontsource-variable/geist';
 @import '@fontsource-variable/geist-mono';
+@import '@fontsource-variable/newsreader';
 @import 'tailwindcss';
 
 @theme {
   --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
+  --font-serif: 'Newsreader Variable', Georgia, serif;
 
   --color-ink: #080a09;
   --color-ink-raised: #0b0e0c;
@@ -241,12 +243,41 @@
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  html,
   body {
-    background: #fff;
+    background: #fff !important;
     color: #101510;
   }
 
   .no-print {
     display: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .report-shell {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .report-paper {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 12mm 13mm !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .report-paper section {
+    break-inside: avoid;
   }
 }
