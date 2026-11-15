@@ -794,8 +794,9 @@ export const stats = (() => {
   const internet = assets.filter((asset) => asset.exposure === 'Internet').length
   const prod = assets.filter((asset) => asset.environment === 'Producción').length
   const core = assets.filter((asset) => asset.environment === 'Core bancario').length
+  const owners = new Set(assets.map((asset) => asset.owner)).size
 
-  return { total, critical, high, medium, low, internet, prod, core }
+  return { total, critical, high, medium, low, internet, prod, core, owners }
 })()
 
 export const readiness = {
