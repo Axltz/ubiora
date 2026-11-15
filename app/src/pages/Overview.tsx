@@ -64,7 +64,7 @@ const kpiCards = [
     note: '9 más que el trimestre anterior',
     trend: 'up',
     good: false,
-    data: [388, 401, 397, 412, 421, 431, 428, 444, 452, 463, 469, 478],
+    data: [312, 318, 321, 327, 334, 339, 345, 351, 358, 367, 376, 387],
     color: 'var(--color-warn)',
   },
   {
@@ -126,21 +126,21 @@ export function Overview() {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 overflow-hidden rounded-[14px] border border-line bg-panel sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 overflow-hidden rounded-[14px] border border-line bg-panel xl:grid-cols-4">
         {kpiCards.map((card, index) => (
           <div
             key={card.label}
             className={cn(
               'relative flex flex-col justify-between gap-5 p-4 sm:p-5',
-              index !== kpiCards.length - 1 && 'border-b border-line sm:border-r',
-              index === 1 && 'sm:border-r-0 xl:border-r',
-              index === 2 && 'sm:border-b-0',
-              index === 3 && 'sm:border-b-0',
+              index < 2 && 'border-b border-line',
+              index % 2 === 0 && 'border-r border-line',
+              index < 3 && 'xl:border-r',
+              'xl:border-b-0',
             )}
           >
             <div className="flex items-start justify-between gap-3">
               <p className="label leading-[1.3]">{card.label}</p>
-              <Sparkline data={card.data} color={card.color} className="h-6 w-[74px] shrink-0" />
+              <Sparkline data={card.data} color={card.color} className="hidden h-6 w-[74px] shrink-0 sm:block" />
             </div>
             <div>
               <p className="tabular text-[30px] font-medium leading-none tracking-[-0.05em] text-paper">

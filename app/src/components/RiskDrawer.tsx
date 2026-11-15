@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { ArrowUpRight, Clipboard, Clock, Copy, Database, ShieldAlert, X } from 'lucide-react'
 import type { CryptoAsset } from '../data/types'
 import { formatDate } from '../lib/utils'
@@ -50,7 +51,7 @@ export function RiskDrawer({
     }
   }
 
-  return (
+  return createPortal(
     <div className="no-print fixed inset-0 z-[80]">
       <button
         type="button"
@@ -203,6 +204,7 @@ export function RiskDrawer({
           </Button>
         </footer>
       </aside>
-    </div>
+    </div>,
+    document.body,
   )
 }
