@@ -16,6 +16,7 @@ import {
 import { assets, environmentBreakdown, stats } from '../data/assets'
 import type { CryptoAsset } from '../data/types'
 import { cn, formatNumber } from '../lib/utils'
+import { downloadFile } from '../lib/download'
 import { RiskDrawer } from '../components/RiskDrawer'
 import { RiskBadge, Tag } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -37,18 +38,6 @@ const statusTone = {
   'En migración': 'sky',
   Mitigado: 'acid',
 } as const
-
-function downloadFile(content: string, filename: string, mime: string) {
-  const blob = new Blob([content], { type: mime })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
-}
 
 export function Inventory() {
   const navigate = useNavigate()
