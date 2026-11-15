@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   FileText,
   Gauge,
   PackageSearch,
@@ -43,6 +44,17 @@ export const navSections: NavSection[] = [
       { label: 'Informe ejecutivo', shortLabel: 'Informe', to: '/informe', icon: FileText },
     ],
   },
+  {
+    label: 'Ayuda',
+    items: [
+      {
+        label: 'Cómo funciona',
+        shortLabel: 'Cómo funciona',
+        to: '/como-funciona',
+        icon: BookOpen,
+      },
+    ],
+  },
 ]
 
 export const pageMeta: Record<string, { title: string; eyebrow: string }> = {
@@ -51,4 +63,5 @@ export const pageMeta: Record<string, { title: string; eyebrow: string }> = {
   '/inventario': { title: 'Inventario CBOM', eyebrow: 'Superficie criptográfica' },
   '/hoja-de-ruta': { title: 'Hoja de ruta', eyebrow: 'Plan de migración' },
   '/informe': { title: 'Informe ejecutivo', eyebrow: 'Board brief' },
+  '/como-funciona': { title: 'Cómo funciona', eyebrow: 'Guía de producto' },
 }

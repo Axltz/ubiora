@@ -12,16 +12,19 @@ import {
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
+  BookOpen,
   Download,
   FileText,
   Gauge,
   PackageSearch,
+  Play,
   Radar,
   Route,
   Search,
   ShieldAlert,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { useTour } from '../tour/ProductTour'
 import { useToast } from './Toast'
 
 type Command = {
@@ -49,6 +52,7 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { start: startTour } = useTour()
 
   const open = useCallback(() => {
     setQuery('')
@@ -115,6 +119,24 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
         action: () => navigate('/informe'),
       },
       {
+        id: 'guide',
+        label: '¿Cómo funciona UBIORA?',
+        hint: 'Guía',
+        group: 'Navegación',
+        icon: BookOpen,
+        keywords: 'ayuda explicacion guia entender producto',
+        action: () => navigate('/como-funciona'),
+      },
+      {
+        id: 'tour',
+        label: 'Iniciar el recorrido guiado',
+        hint: '3 min',
+        group: 'Acciones',
+        icon: Play,
+        keywords: 'tour tutorial recorrido guiado ayuda',
+        action: () => startTour(),
+      },
+      {
         id: 'export',
         label: 'Exportar CBOM en CycloneDX',
         hint: 'JSON',
@@ -127,7 +149,7 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
           }),
       },
     ],
-    [navigate, toast],
+    [navigate, startTour, toast],
   )
 
   const filtered = useMemo(() => {

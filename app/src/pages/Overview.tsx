@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowDownRight,
   ArrowUpRight,
+  BookOpen,
   CalendarClock,
   ChevronRight,
   Radar,
@@ -116,6 +117,13 @@ export function Overview() {
             <CalendarClock className="size-3.5 text-dim" />
             Últimos 12 meses
           </div>
+          <Button
+            variant="secondary"
+            icon={<BookOpen className="size-3.5" />}
+            onClick={() => navigate('/como-funciona')}
+          >
+            Cómo funciona
+          </Button>
           <Button
             variant="primary"
             icon={<Radar className="size-3.5" />}

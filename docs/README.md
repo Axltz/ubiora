@@ -13,7 +13,8 @@ Este directorio reúne la documentación de producto e ingeniería del MVP. Est�
 | 5 | [Diseño de interfaz](05-diseno-de-interfaz.md) | Diseño, frontend | 8 min |
 | 6 | [Calidad y pruebas](06-calidad-y-pruebas.md) | QA, ingeniería | 6 min |
 | 7 | [Plan de entrega y demo](07-plan-de-entrega-y-demo.md) | Todo el equipo | 8 min |
-| 8 | [ADRs](adr/) | Ingeniería | 6 min |
+| 8 | [Guía de uso y recorrido guiado](08-guia-de-uso.md) | Exposición, nuevas incorporaciones | 5 min |
+| 9 | [ADRs](adr/) | Ingeniería | 6 min |
 
 ## Estado del proyecto
 
@@ -25,6 +26,7 @@ Este directorio reúne la documentación de producto e ingeniería del MVP. Est�
 | Scoring | Implementado sobre datos simulados | Pesos y bandas documentados. |
 | Exportación CBOM | Funcional en cliente | JSON con estructura CycloneDX 1.7 y CSV. |
 | Informe ejecutivo | Listo para imprimir | Estilos `@media print` incluidos. |
+| Ayuda en producto | Listo | Guía “Cómo funciona” y recorrido guiado de cinco pasos. |
 | Pruebas automatizadas | Básicas | Build + typecheck; sin suite E2E todavía. |
 
 ## Capturas
@@ -36,6 +38,7 @@ Este directorio reúne la documentación de producto e ingeniería del MVP. Est�
 | Descubrimiento | ![Discovery](assets/screenshots/discovery.png) |
 | Hoja de ruta | ![Roadmap](assets/screenshots/roadmap.png) |
 | Informe ejecutivo | ![Report](assets/screenshots/report.png) |
+| Guía “Cómo funciona” | ![Guía](assets/screenshots/guide.png) |
 
 ## Convenciones de esta documentación
 

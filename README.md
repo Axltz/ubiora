@@ -23,8 +23,9 @@ UBIORA no vende la migración completa: vende **visibilidad y priorización**. E
 | **Descubrimiento** | Configuración de alcance, consola de escaneo en vivo y resumen de hallazgos al terminar. |
 | **Hoja de ruta** | Gantt 2026–2030, seis fases, entregables, dependencias e iniciativas priorizadas. |
 | **Informe ejecutivo** | Documento editorial imprimible con hallazgos, decisiones solicitadas y metodología del scoring. |
+| **Cómo funciona** | Guía en lenguaje claro con el flujo del producto, glosario mínimo, mapa de pantallas y guion de demo. |
 
-La interfaz incluye además búsqueda global (`⌘K` / `Ctrl+K`), notificaciones, drawer de detalle por activo y navegación responsive.
+La interfaz incluye además un **recorrido guiado** que lleva por las cinco pantallas paso a paso, búsqueda global (`⌘K` / `Ctrl+K`), notificaciones, drawer de detalle por activo y navegación responsive.
 
 ## Stack
 
@@ -66,10 +67,11 @@ npm run lint       # Oxlint
 │       │   ├── brand/            # Identidad
 │       │   ├── charts/           # Visualizaciones SVG a medida
 │       │   ├── layout/           # Shell, sidebar y topbar
+│       │   ├── tour/             # Recorrido guiado por las pantallas
 │       │   └── ui/               # Primitivas: botones, badges, palette, toasts
 │       ├── data/                 # Modelo, inventario simulado y hoja de ruta
 │       ├── lib/                  # Utilidades, navegación y descargas
-│       └── pages/                # Los cinco módulos del producto
+│       └── pages/                # Los cinco módulos y la guía "Cómo funciona"
 ├── docs/                         # Documentación de producto e ingeniería
 │   ├── adr/                      # Architecture Decision Records
 │   └── assets/screenshots/       # Capturas para documentación
@@ -89,6 +91,7 @@ npm run lint       # Oxlint
 | [`docs/05-diseno-de-interfaz.md`](docs/05-diseno-de-interfaz.md) | Sistema de diseño, tipografía, componentes y criterios visuales. |
 | [`docs/06-calidad-y-pruebas.md`](docs/06-calidad-y-pruebas.md) | Estrategia de pruebas, matriz manual y limitaciones conocidas. |
 | [`docs/07-plan-de-entrega-y-demo.md`](docs/07-plan-de-entrega-y-demo.md) | Sprints, guion de demo y siguientes pasos. |
+| [`docs/08-guia-de-uso.md`](docs/08-guia-de-uso.md) | Guía en lenguaje claro, recorrido guiado y glosario. |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Convenciones de commits, ramas y checklist de cambios. |
 
 ## Datos de demostración

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { navSections } from '../../lib/navigation'
+import { useTour } from '../tour/ProductTour'
 import { Logo } from '../brand/Logo'
 import { LiveDot } from '../ui/Badge'
 import { useCommandPalette } from '../ui/CommandPalette'
@@ -34,6 +35,7 @@ export function Sidebar({
   const [open, setOpen] = useState(false)
   const switcherRef = useRef<HTMLDivElement>(null)
   const { open: openCommand } = useCommandPalette()
+  const { start: startTour } = useTour()
 
   useEffect(() => {
     if (!open) return
@@ -210,8 +212,13 @@ export function Sidebar({
           </button>
           <button
             type="button"
+            onClick={() => {
+              startTour()
+              onNavigate?.()
+            }}
             className="grid size-8 place-items-center rounded-lg text-dim transition-colors hover:bg-surface hover:text-paper"
-            aria-label="Ayuda"
+            aria-label="Iniciar recorrido guiado"
+            title="Recorrido guiado"
           >
             <CircleHelp className="size-4" strokeWidth={1.8} />
           </button>
