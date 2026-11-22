@@ -2,20 +2,19 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowDownWideNarrow,
-  Check,
   ChevronLeft,
   ChevronRight,
   Download,
-  FileJson,
   FileSpreadsheet,
+  Globe,
   Radar,
   Search,
-  ShieldAlert,
   X,
 } from 'lucide-react'
-import { assets, environmentBreakdown, stats } from '../data/assets'
+import { environmentBreakdown } from '../data/assets'
+import { useRealScan } from '../data/scanContext'
 import type { CryptoAsset } from '../data/types'
-import { cn, formatNumber } from '../lib/utils'
+import { formatNumber } from '../lib/utils'
 import { downloadFile } from '../lib/download'
 import { RiskDrawer } from '../components/RiskDrawer'
 import { RiskBadge, Tag } from '../components/ui/Badge'
@@ -26,22 +25,10 @@ import { useToast } from '../components/ui/Toast'
 
 const PAGE_SIZE = 14
 
-const priorityColors: Record<CryptoAsset['priority'], string> = {
-  Crítico: 'bg-danger',
-  Alto: 'bg-warn',
-  Medio: 'bg-lilac',
-  Bajo: 'bg-dim',
-}
-
-const statusTone = {
-  Pendiente: 'neutral',
-  'En migración': 'sky',
-  Mitigado: 'acid',
-} as const
-
 export function Inventory() {
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { allAssets, customAssets } = useRealScan()
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
@@ -64,13 +51,13 @@ export function Inventory() {
   }, [deferredQuery, environment, priority, algorithm, sortDesc])
 
   const algorithmOptions = useMemo(
-    () => ['Todos', ...Array.from(new Set(assets.map((asset) => asset.algorithm))).sort()],
-    [],
+    () => ['Todos', ...Array.from(new Set(allAssets.map((asset) => asset.algorithm))).sort()],
+    [allAssets],
   )
 
   const filtered = useMemo(() => {
     const term = deferredQuery.trim().toLowerCase()
-    return assets
+    return allAssets
       .filter((asset) => {
         if (environment !== 'Todos' && asset.environment !== environment) return false
         if (priority !== 'Todas' && asset.priority !== priority) return false
@@ -81,7 +68,7 @@ export function Inventory() {
           .includes(term)
       })
       .sort((a, b) => (sortDesc ? b.score - a.score : a.score - b.score))
-  }, [deferredQuery, environment, priority, algorithm, sortDesc])
+  }, [allAssets, deferredQuery, environment, priority, algorithm, sortDesc])
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, pageCount)
@@ -119,7 +106,7 @@ export function Inventory() {
   }
 
   const exportCbom = () => {
-    const source = checked.size > 0 ? assets.filter((asset) => checked.has(asset.id)) : filtered
+    const source = checked.size > 0 ? allAssets.filter((asset) => checked.has(asset.id)) : filtered
     const bom = {
       bomFormat: 'CycloneDX',
       specVersion: '1.7',
@@ -128,7 +115,7 @@ export function Inventory() {
       metadata: {
         timestamp: new Date().toISOString(),
         component: { type: 'application', name: 'Cobalto Pay', version: '2026.11' },
-        tools: { components: [{ type: 'application', name: 'UBIORA Discovery Engine', version: '0.4.2' }] },
+        tools: { components: [{ type: 'application', name: 'UBIORA Discovery Engine', version: '1.0' }] },
       },
       components: source.map((asset) => ({
         type: 'cryptographic-asset',
@@ -148,37 +135,65 @@ export function Inventory() {
           { name: 'ubiora:priority', value: asset.priority },
           { name: 'ubiora:exposure', value: asset.exposure },
           { name: 'ubiora:shelf-life', value: `${asset.shelfLife} years` },
+          { name: 'ubiora:owner', value: asset.owner },
+          { name: 'ubiora:target', value: asset.target },
+          { name: 'ubiora:effort', value: asset.effort },
+          { name: 'ubiora:recommendation', value: asset.recommendation },
         ],
       })),
     }
-    downloadFile(JSON.stringify(bom, null, 2), 'cobalto-pay-cbom-2026-11-14.json', 'application/json')
-    toast('CBOM exportado', {
-      detail: `${formatNumber(source.length)} componentes en formato CycloneDX 1.7.`,
+    downloadFile(JSON.stringify(bom, null, 2), 'ubiora-cbom-cyclonedx-1.7.json', 'application/json')
+    toast('CBOM CycloneDX 1.7 exportado', {
+      detail: `${formatNumber(source.length)} componentes en formato estándar.`,
     })
   }
 
   const exportCsv = () => {
-    const source = checked.size > 0 ? assets.filter((asset) => checked.has(asset.id)) : filtered
-    const header = ['id', 'activo', 'tipo', 'algoritmo', 'llave', 'ambiente', 'sensibilidad', 'exposicion', 'vida_util', 'score', 'prioridad', 'estado', 'propietario']
+    const source = checked.size > 0 ? allAssets.filter((asset) => checked.has(asset.id)) : filtered
+    const header = [
+      'ID',
+      'Activo',
+      'Tipo',
+      'Algoritmo',
+      'Tamaño',
+      'Ubicación',
+      'Ambiente',
+      'Sensibilidad',
+      'Vida_util_anos',
+      'Exposición',
+      'Criticidad_operativa',
+      'Score_riesgo',
+      'Prioridad',
+      'Propietario',
+      'Recomendación',
+      'Meta',
+      'Esfuerzo',
+      'Estado',
+    ]
     const rows = source.map((asset) => [
       asset.id,
       asset.name,
       asset.kind,
       asset.algorithm,
       asset.keySize,
+      asset.location,
       asset.environment,
       asset.sensitivity,
-      asset.exposure,
       asset.shelfLife,
+      asset.exposure,
+      asset.criticality,
       asset.score,
       asset.priority,
-      asset.status,
       asset.owner,
+      asset.recommendation,
+      asset.target,
+      asset.effort,
+      asset.status,
     ])
     const csv = [header, ...rows]
       .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(','))
       .join('\n')
-    downloadFile(`\uFEFF${csv}`, 'cobalto-pay-inventario-2026-11-14.csv', 'text/csv;charset=utf-8')
+    downloadFile(`\uFEFF${csv}`, 'ubiora-inventario-cbom.csv', 'text/csv;charset=utf-8')
     toast('Inventario exportado', { detail: `${formatNumber(source.length)} filas en CSV.` })
   }
 
@@ -187,371 +202,216 @@ export function Inventory() {
       <div className="flex flex-col gap-6 border-b border-line pb-7 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
           <div className="mb-4 flex flex-wrap items-center gap-2.5">
-            <Tag tone="acid">
-              <Check className="size-2.5" /> CycloneDX 1.7
-            </Tag>
+            <Tag tone="acid">CycloneDX 1.7 CBOM</Tag>
             <span className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-dim">
-              {formatNumber(stats.total)} componentes · {stats.owners} propietarios
+              {formatNumber(allAssets.length)} activos indexados · {allAssets.filter((a) => a.priority === 'Crítico').length} críticos
             </span>
+            {customAssets.length > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-acid/30 bg-acid/10 px-2 py-0.5 text-[10px] text-acid font-medium">
+                <Globe className="size-2.5" /> {customAssets.length} escaneados en vivo
+              </span>
+            )}
           </div>
-          <h1 className="text-[clamp(2rem,3.2vw,3rem)] font-medium leading-[0.98] tracking-[-0.05em] text-paper">
-            El inventario que <span className="text-muted">nadie tiene.</span>
+          <h1 className="max-w-[720px] text-[clamp(2rem,3.2vw,3rem)] font-medium leading-[0.98] tracking-[-0.05em] text-paper">
+            Inventario Criptográfico y CBOM
           </h1>
-          <p className="mt-4 max-w-[560px] text-[13px] leading-relaxed text-muted">
-            Cada certificado, llave, librería y endpoint con criptografía detectada. Filtra, audita
-            y convierte el hallazgo en una decisión de migración.
+          <p className="mt-4 max-w-[580px] text-[13px] leading-relaxed text-muted">
+            Catálogo exhaustivo de activos criptográficos conforme al estándar CycloneDX 1.7. Cada fila vincula el algoritmo detectado con su nivel de riesgo y recomendación NIST.
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Button variant="secondary" icon={<Download className="size-3.5" />} onClick={exportCbom}>
-            Exportar CBOM
+            Exportar CBOM (JSON)
+          </Button>
+          <Button
+            variant="secondary"
+            icon={<FileSpreadsheet className="size-3.5" />}
+            onClick={exportCsv}
+          >
+            Exportar CSV
           </Button>
           <Button
             variant="primary"
             icon={<Radar className="size-3.5" />}
             onClick={() => navigate('/descubrimiento')}
           >
-            Nuevo escaneo
+            Nuevo Escaneo
           </Button>
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 overflow-hidden rounded-[14px] border border-line bg-panel xl:grid-cols-4">
-        {[
-          { label: 'Componentes indexados', value: formatNumber(stats.total), note: 'CBOM completo' },
-          { label: 'Hallazgos críticos', value: String(stats.critical), note: 'Requieren decisión' },
-          { label: 'Expuestos a Internet', value: formatNumber(stats.internet), note: 'Superficie externa' },
-          {
-            label: 'Cobertura de inventario',
-            value: '100%',
-            note: 'Sin activos huérfanos',
-          },
-        ].map((item, index) => (
-          <div
-            key={item.label}
-            className={cn(
-              'flex flex-col justify-between gap-4 p-4 sm:p-5',
-              index !== 3 && 'border-b border-line xl:border-b-0',
-              index % 2 === 0 && 'border-r border-line',
-              index === 2 && 'xl:border-r',
-            )}
-          >
-            <p className="label leading-[1.3]">{item.label}</p>
-            <div>
-              <p className="tabular text-[28px] font-medium leading-none tracking-[-0.05em] text-paper">
-                {item.value}
-              </p>
-              <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.08em] text-dim">
-                {item.note}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-4 panel overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-line p-3 sm:p-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="relative flex h-9 w-full items-center gap-2 rounded-lg border border-line bg-ink px-3 transition-colors focus-within:border-line-strong xl:max-w-[380px]">
-              <Search className="size-3.5 shrink-0 text-dim" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar por activo, algoritmo, ubicación o dueño…"
-                className="w-full bg-transparent text-[12px] text-paper placeholder:text-dim focus:outline-none"
-              />
-              {query && (
-                <button
-                  type="button"
-                  onClick={() => setQuery('')}
-                  className="text-dim transition-colors hover:text-paper"
-                  aria-label="Limpiar búsqueda"
-                >
-                  <X className="size-3.5" />
-                </button>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <FilterSelect
-                label="Ambiente"
-                value={environment}
-                options={['Todos', ...environmentBreakdown.map((item) => item.name)]}
-                onChange={setEnvironment}
-              />
-              <FilterSelect
-                label="Algoritmo"
-                value={algorithm}
-                options={algorithmOptions}
-                onChange={setAlgorithm}
-              />
-              <FilterSelect
-                label="Prioridad"
-                value={priority}
-                options={['Todas', 'Crítico', 'Alto', 'Medio', 'Bajo']}
-                onChange={setPriority}
-              />
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-line bg-panel p-2.5">
+        <div className="flex flex-1 flex-wrap items-center gap-2 min-w-[280px]">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-dim" />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Buscar por nombre, algoritmo, ubicación o responsable…"
+              className="h-9 w-full rounded-lg border border-line bg-ink pl-9 pr-8 text-[12.5px] text-paper placeholder:text-dim focus:border-acid focus:outline-none"
+            />
+            {query && (
               <button
                 type="button"
-                onClick={() => setSortDesc((current) => !current)}
-                className="flex h-8 items-center gap-1.5 rounded-lg border border-line bg-panel px-2.5 text-[10.5px] text-muted transition-colors hover:border-line-strong hover:text-paper"
+                onClick={() => setQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-dim hover:text-paper"
               >
-                <ArrowDownWideNarrow className="size-3.5 text-dim" />
-                Score {sortDesc ? '↓' : '↑'}
+                <X className="size-3.5" />
               </button>
-              {(activeFilters > 0 || query) && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="flex h-8 items-center gap-1 rounded-lg px-2 text-[10.5px] text-dim transition-colors hover:text-paper"
-                >
-                  <X className="size-3" /> Limpiar
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-dim">
-                {formatNumber(filtered.length)} resultados
-                {activeFilters > 0 && ` · ${activeFilters} filtro${activeFilters > 1 ? 's' : ''} activo${activeFilters > 1 ? 's' : ''}`}
-              </p>
-              <span className="hidden h-3 w-px bg-line sm:block" />
-              <button
-                type="button"
-                onClick={exportCsv}
-                className="hidden items-center gap-1 font-mono text-[9px] uppercase tracking-[0.08em] text-dim transition-colors hover:text-paper sm:flex"
-              >
-                <FileSpreadsheet className="size-3" /> CSV
-              </button>
-              <button
-                type="button"
-                onClick={exportCbom}
-                className="hidden items-center gap-1 font-mono text-[9px] uppercase tracking-[0.08em] text-dim transition-colors hover:text-paper sm:flex"
-              >
-                <FileJson className="size-3" /> JSON
-              </button>
-            </div>
-            {checked.size > 0 && (
-              <div className="flex items-center gap-2 rounded-lg border border-acid/25 bg-acid/8 px-2.5 py-1.5">
-                <span className="font-mono text-[9.5px] text-acid">{checked.size} seleccionados</span>
-                <button
-                  type="button"
-                  onClick={exportCbom}
-                  className="font-mono text-[9px] uppercase tracking-[0.06em] text-acid/80 hover:text-acid"
-                >
-                  Exportar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setChecked(new Set())}
-                  className="text-acid/70 hover:text-acid"
-                  aria-label="Limpiar selección"
-                >
-                  <X className="size-3" />
-                </button>
-              </div>
             )}
           </div>
+
+          <FilterSelect
+            label="Ambiente"
+            value={environment}
+            options={['Todos', ...environmentBreakdown.map((item) => item.name)]}
+            onChange={setEnvironment}
+          />
+          <FilterSelect
+            label="Prioridad"
+            value={priority}
+            options={['Todas', 'Crítico', 'Alto', 'Medio', 'Bajo']}
+            onChange={(val) => {
+              setPriority(val)
+              setSearchParams(val === 'Todas' ? {} : { riesgo: val })
+            }}
+          />
+          <FilterSelect
+            label="Algoritmo"
+            value={algorithm}
+            options={algorithmOptions}
+            onChange={setAlgorithm}
+          />
         </div>
 
+        <div className="flex items-center gap-2">
+          {activeFilters > 0 && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} icon={<X className="size-3" />}>
+              Limpiar filtros
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setSortDesc(!sortDesc)}
+            icon={<ArrowDownWideNarrow className="size-3.5" />}
+          >
+            {sortDesc ? 'Mayor riesgo' : 'Menor riesgo'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Tabla CBOM */}
+      <div className="mt-4 overflow-hidden rounded-[12px] border border-line bg-panel">
         <div ref={tableRef} className="overflow-x-auto">
-          <table className="w-full min-w-[1060px] border-collapse text-left">
+          <table className="w-full min-w-[900px] border-collapse text-left">
             <thead>
-              <tr className="border-b border-line bg-ink-raised/60">
-                <th className="w-10 px-4 py-2.5">
+              <tr className="border-b border-line bg-ink-raised/70">
+                <th className="w-10 px-4 py-3">
                   <input
                     type="checkbox"
-                    checked={visible.length > 0 && visible.every((asset) => checked.has(asset.id))}
+                    checked={visible.length > 0 && visible.every((a) => checked.has(a.id))}
                     onChange={togglePage}
-                    className="size-3.5 cursor-pointer accent-acid"
-                    aria-label="Seleccionar página"
+                    className="accent-acid"
                   />
                 </th>
-                <th className="label px-2 py-2.5 font-medium">Activo</th>
-                <th className="label px-3 py-2.5 font-medium">Algoritmo</th>
-                <th className="label px-3 py-2.5 font-medium">Ambiente</th>
-                <th className="label px-3 py-2.5 font-medium">Exposición</th>
-                <th className="label px-3 py-2.5 font-medium">Sensibilidad</th>
-                <th className="label px-3 py-2.5 font-medium">Vida útil</th>
-                <th className="label px-3 py-2.5 font-medium">Score</th>
-                <th className="label px-3 py-2.5 font-medium">Estado</th>
-                <th className="label px-3 py-2.5 font-medium">Prioridad</th>
-                <th className="w-8 px-2 py-2.5" />
+                <th className="px-4 py-3 font-mono text-[9px] uppercase tracking-wider text-muted">ID / Nombre</th>
+                <th className="px-3 py-3 font-mono text-[9px] uppercase tracking-wider text-muted">Tipo</th>
+                <th className="px-3 py-3 font-mono text-[9px] uppercase tracking-wider text-muted">Algoritmo</th>
+                <th className="px-3 py-3 font-mono text-[9px] uppercase tracking-wider text-muted">Ambiente</th>
+                <th className="px-3 py-3 font-mono text-[9px] uppercase tracking-wider text-muted">Exposición</th>
+                <th className="px-3 py-3 font-mono text-[9px] uppercase tracking-wider text-muted">Score</th>
+                <th className="px-3 py-3 font-mono text-[9px] uppercase tracking-wider text-muted">Prioridad</th>
+                <th className="px-4 py-3 font-mono text-[9px] uppercase tracking-wider text-muted text-right">Acción</th>
               </tr>
             </thead>
-            <tbody>
-              {visible.map((asset) => (
-                <tr
-                  key={asset.id}
-                  tabIndex={0}
-                  onClick={() => setSelected(asset)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') setSelected(asset)
-                  }}
-                  className="group cursor-pointer border-b border-line/80 transition-colors last:border-b-0 hover:bg-surface/50"
-                >
-                  <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={checked.has(asset.id)}
-                      onChange={() => toggleChecked(asset.id)}
-                      className="size-3.5 cursor-pointer accent-acid"
-                      aria-label={`Seleccionar ${asset.name}`}
+            <tbody className="divide-y divide-line">
+              {visible.length === 0 ? (
+                <tr>
+                  <td colSpan={9}>
+                    <EmptyState
+                      title="No se encontraron componentes"
+                      description="Prueba cambiando los términos de búsqueda o limpiando los filtros seleccionados."
+                      action={<Button size="sm" onClick={clearFilters}>Limpiar filtros</Button>}
                     />
                   </td>
-                  <td className="px-2 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className={cn('size-1.5 shrink-0 rounded-full', priorityColors[asset.priority])} />
-                      <div className="min-w-0">
-                        <p className="truncate font-mono text-[11px] text-paper">{asset.name}</p>
-                        <p className="mt-0.5 truncate text-[9.5px] text-dim">
-                          {asset.kind} · {asset.owner}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3">
-                    <p className="font-mono text-[10.5px] text-muted">{asset.algorithm}</p>
-                    <p className="mt-0.5 font-mono text-[8.5px] uppercase tracking-[0.06em] text-dim">
-                      {asset.keySize}
-                    </p>
-                  </td>
-                  <td className="px-3 py-3 text-[10.5px] text-muted">{asset.environment}</td>
-                  <td className="px-3 py-3">
-                    <span
-                      className={cn(
-                        'text-[10.5px]',
-                        asset.exposure === 'Internet' ? 'text-warn' : 'text-muted',
-                      )}
-                    >
-                      {asset.exposure}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3">
-                    <span className="text-[10.5px] text-muted">{asset.sensitivity}</span>
-                  </td>
-                  <td className="tabular px-3 py-3 font-mono text-[10px] text-muted">
-                    {asset.shelfLife} a
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="tabular w-5 font-mono text-[10.5px] text-paper">{asset.score}</span>
-                      <div className="h-1 w-10 overflow-hidden rounded-full bg-line">
-                        <div
-                          className={cn('h-full rounded-full', priorityColors[asset.priority])}
-                          style={{ width: `${asset.score}%` }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3">
-                    <Tag tone={statusTone[asset.status]}>{asset.status}</Tag>
-                  </td>
-                  <td className="px-3 py-3">
-                    <RiskBadge level={asset.priority} dot={false} />
-                  </td>
-                  <td className="px-2 py-3">
-                    <ChevronRight className="size-3.5 text-dim transition-all group-hover:translate-x-0.5 group-hover:text-paper" />
-                  </td>
                 </tr>
-              ))}
+              ) : (
+                visible.map((asset) => (
+                  <tr
+                    key={asset.id}
+                    onClick={() => setSelected(asset)}
+                    className="group cursor-pointer hover:bg-surface/60 transition-colors"
+                  >
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={checked.has(asset.id)}
+                        onChange={() => toggleChecked(asset.id)}
+                        className="accent-acid"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col">
+                        <span className="font-mono text-[10px] text-dim">{asset.id}</span>
+                        <span className="text-[12.5px] font-medium text-paper group-hover:text-acid transition-colors">
+                          {asset.name}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-[11.5px] text-muted">{asset.kind}</td>
+                    <td className="px-3 py-3">
+                      <span className="font-mono text-[11px] text-paper bg-ink px-1.5 py-0.5 rounded border border-line">
+                        {asset.algorithm}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-[11.5px] text-muted">{asset.environment}</td>
+                    <td className="px-3 py-3 text-[11.5px] text-muted">{asset.exposure}</td>
+                    <td className="px-3 py-3 font-mono text-[12px] font-semibold text-paper">
+                      {asset.score}
+                    </td>
+                    <td className="px-3 py-3">
+                      <RiskBadge level={asset.priority} />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <ChevronRight className="inline-block size-4 text-dim group-hover:text-paper" />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
-          {visible.length === 0 && (
-            <EmptyState
-              title="Sin componentes para estos filtros"
-              description="Prueba con otro algoritmo, ambiente o término de búsqueda."
-              action={
-                <Button variant="secondary" size="sm" onClick={clearFilters}>
-                  Limpiar filtros
-                </Button>
-              }
-            />
-          )}
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-dim">
-            {filtered.length === 0
-              ? '0 componentes'
-              : `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, filtered.length)} de ${formatNumber(filtered.length)}`}
-            <span className="mx-2 text-line-strong">/</span>
-            CycloneDX 1.7
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled={currentPage === 1}
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
-              className="grid size-7 place-items-center rounded-md border border-line text-muted transition-colors hover:text-paper disabled:opacity-30"
-              aria-label="Página anterior"
-            >
-              <ChevronLeft className="size-3.5" />
-            </button>
-            {Array.from({ length: Math.min(5, pageCount) }, (_, index) => {
-              const start = Math.max(1, Math.min(currentPage - 2, pageCount - 4))
-              const pageNumber = start + index
-              return (
-                <button
-                  key={pageNumber}
-                  type="button"
-                  onClick={() => {
-                    setPage(pageNumber)
-                    tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }}
-                  className={cn(
-                    'grid size-7 place-items-center rounded-md border font-mono text-[9.5px] transition-colors',
-                    pageNumber === currentPage
-                      ? 'border-acid/30 bg-acid/10 text-acid'
-                      : 'border-line text-dim hover:text-paper',
-                  )}
-                >
-                  {pageNumber}
-                </button>
-              )
-            })}
-            {pageCount > 5 && (
-              <>
-                <span className="px-1 font-mono text-[9px] text-dim">…</span>
-                <button
-                  type="button"
-                  onClick={() => setPage(pageCount)}
-                  className="grid size-7 place-items-center rounded-md border border-line font-mono text-[9.5px] text-dim transition-colors hover:text-paper"
-                >
-                  {pageCount}
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              disabled={currentPage === pageCount}
-              onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
-              className="grid size-7 place-items-center rounded-md border border-line text-muted transition-colors hover:text-paper disabled:opacity-30"
-              aria-label="Página siguiente"
-            >
-              <ChevronRight className="size-3.5" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-col items-start justify-between gap-3 rounded-[14px] border border-line bg-panel px-5 py-4 sm:flex-row sm:items-center">
-        <div className="flex items-start gap-3">
-          <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-line-strong bg-surface">
-            <ShieldAlert className="size-4 text-muted" />
+        <div className="flex items-center justify-between border-t border-line px-4 py-3 text-[11.5px] text-muted">
+          <span>
+            Mostrando {visible.length} de {filtered.length} activos
           </span>
-          <div>
-            <p className="text-[12px] text-paper">El CBOM es la evidencia. La priorización es la decisión.</p>
-            <p className="mt-0.5 text-[10.5px] text-dim">
-              Score calculado con sensibilidad 30%, vida útil 25%, exposición 25% y criticidad 20%.
-            </p>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              icon={<ChevronLeft className="size-3.5" />}
+            >
+              Anterior
+            </Button>
+            <span className="font-mono text-[10.5px] px-2 text-paper">
+              {currentPage} / {pageCount}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= pageCount}
+              onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+              iconRight={<ChevronRight className="size-3.5" />}
+            >
+              Siguiente
+            </Button>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => navigate('/informe')}>
-          Ver metodología <ChevronRight className="size-3.5" />
-        </Button>
       </div>
 
       <RiskDrawer asset={selected} onClose={() => setSelected(null)} />
