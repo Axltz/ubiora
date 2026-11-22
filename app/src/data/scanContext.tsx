@@ -4,7 +4,7 @@ import {
   useContext,
 } from 'react'
 import type { CryptoAsset } from './types'
-import { assets as initialAssets } from './assets'
+const initialAssets: CryptoAsset[] = []
 
 interface RealScanContextType {
   customAssets: CryptoAsset[]
@@ -21,14 +21,7 @@ const RealScanContext = createContext<RealScanContextType>({
 })
 
 export function RealScanProvider({ children }: { children: React.ReactNode }) {
-  const [customAssets, setCustomAssets] = useState<CryptoAsset[]>(() => {
-    try {
-      const saved = localStorage.getItem('ubiora_custom_assets')
-      return saved ? JSON.parse(saved) : []
-    } catch {
-      return []
-    }
-  })
+  const [customAssets, setCustomAssets] = useState<CryptoAsset[]>([])
 
   const addScanResults = (results: CryptoAsset[]) => {
     setCustomAssets((prev) => {
