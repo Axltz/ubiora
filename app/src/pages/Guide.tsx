@@ -59,14 +59,14 @@ const screens = [
     to: '/',
     icon: Gauge,
     question: '¿Qué tan expuestos estamos?',
-    what: 'Score de preparación PQC (34/100), conteo de activos críticos y tendencia de riesgo.',
+    what: 'Score de preparación PQC calculado, conteo de activos críticos y distribución de riesgo.',
   },
   {
     name: 'Descubrimiento (Motor Real)',
     to: '/descubrimiento',
     icon: Radar,
     question: '¿Cómo se detectan los activos?',
-    what: 'Conexión TLS y socket en vivo para escanear cualquier host real o benchmark masivo.',
+    what: 'Conexión TLS en vivo para escanear dominios reales y generar el inventario desde cero.',
   },
   {
     name: 'Inventario CBOM',
@@ -80,7 +80,7 @@ const screens = [
     to: '/hoja-de-ruta',
     icon: Route,
     question: '¿Cómo y cuándo se migra?',
-    what: 'Cronograma 2026–2030 con seis fases, entregables y reducción progresiva de riesgo.',
+    what: 'Cronograma de referencia 2026–2030 con seis fases, entregables y reducción progresiva de riesgo.',
   },
   {
     name: 'Informe ejecutivo',

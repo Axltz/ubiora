@@ -1,44 +1,43 @@
 import { useNavigate } from 'react-router-dom'
+import { ArrowUpRight, Check, Download, FileText, Printer, Radar, ShieldCheck } from 'lucide-react'
 import {
-  ArrowUpRight,
-  Check,
-  Download,
-  FileText,
-  Printer,
-  ShieldCheck,
-} from 'lucide-react'
-import {
-  algorithmFamilies,
-  readiness,
-  stats,
-  topRisks,
+  computeAlgorithmFamilies,
+  computeReadiness,
+  computeStats,
+  monthsToDeadline,
 } from '../data/assets'
-import { roadmapPhases, roadmapSummary } from '../data/roadmap'
+import { roadmapPhases } from '../data/roadmap'
 import { cn, formatNumber } from '../lib/utils'
 import { Button } from '../components/ui/Button'
+import { EmptyState, Panel } from '../components/ui/Panel'
 import { Tag } from '../components/ui/Badge'
 import { useToast } from '../components/ui/Toast'
+import { useRealScan } from '../data/scanContext'
 
-const paperStats = [
-  { value: formatNumber(stats.total), label: 'componentes criptográficos' },
-  { value: String(stats.critical), label: 'hallazgos críticos' },
-  { value: `${readiness.score}/100`, label: 'readiness PQC' },
-  { value: `${roadmapSummary.monthsRemaining}`, label: 'meses de ventana' },
-]
+const REPORT_DATE = new Date()
 
-const decisions = [
-  'Aprobar la hoja de ruta 2026–2030 y su secuencia de seis fases.',
-  'Asignar un propietario ejecutivo por fase y reportar avance trimestral al comité de riesgo.',
-  'Autorizar la inversión inicial de $11,000–$15,000 MXN para infraestructura y validación.',
-]
+function todayLabel() {
+  return new Intl.DateTimeFormat('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(REPORT_DATE)
+}
 
 export function Report() {
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { assets, orgName, isDemo, loadDemo } = useRealScan()
+
+  const stats = computeStats(assets)
+  const readiness = computeReadiness(assets)
+  const families = computeAlgorithmFamilies(assets)
+  const months = monthsToDeadline()
+  const topRisks = assets.slice(0, 5)
 
   const printReport = () => {
     toast('Preparando el documento', {
-      detail: 'Elige “Guardar como PDF” en el diálogo de impresión.',
+      detail: 'Elige «Guardar como PDF» en el diálogo de impresión.',
       tone: 'info',
     })
     window.setTimeout(() => window.print(), 300)
@@ -56,42 +55,88 @@ export function Report() {
     }
   }
 
+  const paperStats = [
+    { value: formatNumber(stats.total), label: 'componentes criptográficos' },
+    { value: String(stats.critical), label: 'hallazgos críticos' },
+    { value: `${readiness.score}/100`, label: 'readiness PQC' },
+    { value: `${months}`, label: 'meses de ventana' },
+  ]
+
+  const decisions = [
+    'Aprobar la hoja de ruta de migración y su secuencia de seis fases.',
+    'Asignar un propietario ejecutivo por fase y reportar avance trimestral al comité de riesgo.',
+    'Autorizar el piloto de crypto-agility en los servicios con mayor exposición.',
+  ]
+
+  const header = (
+    <div className="no-print flex flex-col gap-6 border-b border-line pb-7 lg:flex-row lg:items-end lg:justify-between">
+      <div className="min-w-0">
+        <div className="mb-4 flex flex-wrap items-center gap-2.5">
+          <Tag tone="acid">
+            <FileText className="size-2.5" /> Board brief
+          </Tag>
+          <span className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-dim">
+            Versión 1.0 · {todayLabel()} · Confidencial
+          </span>
+          {isDemo && <Tag tone="warn">Datos de ejemplo</Tag>}
+        </div>
+        <h1 className="max-w-[780px] text-[clamp(2rem,3.2vw,3rem)] font-medium leading-[0.98] tracking-[-0.05em] text-paper">
+          El informe que <span className="text-muted">va al consejo.</span>
+        </h1>
+        <p className="mt-4 max-w-[560px] text-[13px] leading-relaxed text-muted">
+          {stats.total === 0
+            ? 'Aún no hay hallazgos que reportar. Ejecuta un descubrimiento o carga el ejemplo para generar el documento ejecutivo.'
+            : `Un documento de dos páginas que traduce ${formatNumber(stats.total)} hallazgos técnicos en una decisión ejecutiva: qué está expuesto, por qué importa ahora y qué se aprueba.`}
+        </p>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <Button variant="secondary" icon={<Download className="size-3.5" />} onClick={shareReport}>
+          Compartir
+        </Button>
+        <Button variant="primary" icon={<Printer className="size-3.5" />} onClick={printReport} disabled={stats.total === 0}>
+          Imprimir / PDF
+        </Button>
+      </div>
+    </div>
+  )
+
+  if (stats.total === 0) {
+    return (
+      <div className="animate-rise report-shell">
+        {header}
+        <Panel className="mt-5">
+          <EmptyState
+            title="Todavía no hay informe"
+            description="El informe se construye con los activos del inventario. Primero descubre la criptografía de tu organización."
+            action={
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button onClick={() => navigate('/descubrimiento')} icon={<Radar className="size-3.5" />}>
+                  Ejecutar descubrimiento
+                </Button>
+                <Button variant="secondary" onClick={loadDemo}>
+                  Cargar ejemplo
+                </Button>
+              </div>
+            }
+          />
+        </Panel>
+      </div>
+    )
+  }
+
+  const vulnerable = stats.total - stats.hybrid
+  const vulnerableShare = Math.round((vulnerable / stats.total) * 100)
+
   return (
     <div className="animate-rise report-shell">
-      <div className="no-print flex flex-col gap-6 border-b border-line pb-7 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0">
-          <div className="mb-4 flex flex-wrap items-center gap-2.5">
-            <Tag tone="acid">
-              <FileText className="size-2.5" /> Board brief
-            </Tag>
-            <span className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-dim">
-              Versión 1.0 · Q4 2026 · Confidencial
-            </span>
-          </div>
-          <h1 className="max-w-[780px] text-[clamp(2rem,3.2vw,3rem)] font-medium leading-[0.98] tracking-[-0.05em] text-paper">
-            El informe que <span className="text-muted">va al consejo.</span>
-          </h1>
-          <p className="mt-4 max-w-[560px] text-[13px] leading-relaxed text-muted">
-            Un documento de dos páginas que traduce 1,284 hallazgos técnicos en una decisión
-            ejecutiva: qué está expuesto, por qué importa ahora y qué se aprueba.
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Button variant="secondary" icon={<Download className="size-3.5" />} onClick={shareReport}>
-            Compartir
-          </Button>
-          <Button variant="primary" icon={<Printer className="size-3.5" />} onClick={printReport}>
-            Imprimir / PDF
-          </Button>
-        </div>
-      </div>
+      {header}
 
       <div className="no-print mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-line bg-panel px-4 py-3">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[9px] uppercase tracking-[0.08em] text-dim">
           <span className="text-muted">Documento</span>
           <span>Audiencia · Consejo + CISO</span>
           <span>Fuente · CBOM v1.7</span>
-          <span>14 nov 2026</span>
+          <span>{todayLabel()}</span>
         </div>
         <div className="flex items-center gap-2">
           <ShieldCheck className="size-3.5 text-acid" />
@@ -114,7 +159,7 @@ export function Report() {
               Confidencial · Borrador para consejo
             </p>
             <p className="mt-1 font-mono text-[8px] uppercase tracking-[0.14em] text-[#697065]">
-              14 nov 2026 · Ciudad de México
+              {todayLabel()} · Ciudad de México
             </p>
           </div>
         </header>
@@ -125,14 +170,14 @@ export function Report() {
               Diagnóstico ejecutivo
             </span>
             <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-[#697065]">
-              Cobalto Pay · Banca digital · México
+              {orgName}
             </span>
           </div>
           <h2 className="max-w-[840px] font-serif text-[clamp(2.5rem,5vw,4.4rem)] font-normal leading-[0.94] tracking-[-0.035em]">
-            La exposición que el banco todavía no puede ver.
+            La exposición que la organización todavía no puede ver.
           </h2>
           <p className="mt-5 max-w-[700px] font-serif text-[clamp(1.15rem,1.8vw,1.45rem)] leading-[1.35] text-[#40463d]">
-            Cobalto Pay depende de criptografía clásica en los sistemas que sostienen su operación.
+            {orgName} depende de criptografía clásica en los sistemas que sostienen su operación.
             La amenaza cuántica no es inmediata; la migración sí.
           </p>
 
@@ -166,11 +211,12 @@ export function Report() {
               <h3 className="font-serif text-[1.6rem] leading-none tracking-[-0.02em]">Lo que encontramos</h3>
             </div>
             <p className="text-[12px] leading-[1.85] text-[#454b43] first-letter:float-left first-letter:mr-2 first-letter:font-serif first-letter:text-[52px] first-letter:leading-[0.78]">
-              El inventario criptográfico de Cobalto Pay cubre 1,284 componentes en 4 entornos.
-              Diecisiete activos concentran el riesgo crítico: Firma de código, vault de clientes,
-              API gateway y respaldos históricos. El 31% de la superficie depende de RSA y 387
-              componentes están expuestos a Internet. La organización ya tiene visibilidad; lo que
-              falta es agilidad para cambiar de algoritmo sin reescribir los sistemas.
+              El inventario criptográfico de {orgName} cubre {formatNumber(stats.total)} componentes
+              en {new Set(assets.map((asset) => asset.environment)).size} entornos. {stats.critical}{' '}
+              activos concentran el riesgo crítico. El {vulnerableShare}% de la superficie depende
+              de algoritmos clásicos y {formatNumber(stats.internet)} componentes están expuestos a
+              Internet. La organización ya tiene visibilidad; lo que falta es agilidad para cambiar
+              de algoritmo sin reescribir los sistemas.
             </p>
             <p className="mt-4 text-[12px] leading-[1.85] text-[#454b43]">
               El dato más urgente es la vida útil del dato. Un respaldo cifrado hoy con RSA-2048 y
@@ -188,7 +234,7 @@ export function Report() {
                   Score / 100
                 </span>
               </div>
-              {topRisks.slice(0, 5).map((asset) => (
+              {topRisks.map((asset) => (
                 <div
                   key={asset.id}
                   className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-b border-[#dcdad2] py-2.5"
@@ -240,7 +286,7 @@ export function Report() {
                 Concentración algorítmica
               </p>
               <div className="mt-3 space-y-2">
-                {algorithmFamilies.slice(0, 3).map((family) => (
+                {families.slice(0, 3).map((family) => (
                   <div key={family.name}>
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] text-[#40463d]">{family.name}</span>
@@ -251,7 +297,7 @@ export function Report() {
                     <div className="mt-1 h-1 bg-[#cfcdc4]">
                       <div
                         className="h-full bg-[#4c5d2d]"
-                        style={{ width: `${family.share * 2.4}%` }}
+                        style={{ width: `${family.share}%` }}
                       />
                     </div>
                   </div>
@@ -336,7 +382,7 @@ export function Report() {
               </h3>
             </div>
             <span className="border border-[#4c5d2d] bg-[#2a331c] px-2.5 py-1 font-mono text-[8px] uppercase tracking-[0.1em] text-[#c8f56b]">
-              Inversión año 1 · $11k–$15k MXN
+              Alcance · Diagnóstico + plan
             </span>
           </div>
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -351,12 +397,10 @@ export function Report() {
           </div>
           <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-[#3a4037] pt-4">
             <p className="font-mono text-[7.5px] uppercase tracking-[0.12em] text-[#8f978a]">
-              Preparado por Carlos Rivera · Director General
-              <span className="mx-2 text-[#5a6155]">/</span>
-              Alex Martínez · CTO
+              Preparado por el equipo UBIORA · Dirección de producto y CTO
             </p>
             <p className="font-mono text-[7.5px] uppercase tracking-[0.12em] text-[#8f978a]">
-              UBIORA · 2026
+              UBIORA · {REPORT_DATE.getFullYear()}
             </p>
           </div>
         </section>
@@ -399,10 +443,10 @@ export function Report() {
 
         <footer className="mt-9 flex flex-wrap items-center justify-between gap-2 border-t border-[#c9c7be] pt-4">
           <p className="font-mono text-[7.5px] uppercase tracking-[0.12em] text-[#697065]">
-            UBIORA · Exposición criptográfica post-cuántica · Cobalto Pay
+            UBIORA · Exposición criptográfica post-cuántica · {orgName}
           </p>
           <p className="font-mono text-[7.5px] uppercase tracking-[0.12em] text-[#697065]">
-            Página 1 de 2 · Confidencial
+            Generado desde CBOM v1.7 · {formatNumber(stats.total)} componentes
           </p>
         </footer>
       </article>
@@ -410,7 +454,7 @@ export function Report() {
       <div className="no-print mx-auto mt-5 flex max-w-[1020px] flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2 font-mono text-[8.5px] uppercase tracking-[0.08em] text-dim">
           <Check className="size-3 text-acid" />
-          Generado desde CBOM v1.7 · 1,284 componentes · 14 nov 2026
+          Generado desde CBOM v1.7 · {formatNumber(stats.total)} componentes · {todayLabel()}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => navigate('/hoja-de-ruta')}>

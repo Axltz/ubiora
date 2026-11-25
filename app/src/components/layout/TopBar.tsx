@@ -4,13 +4,28 @@ import { Bell, ChevronRight, Menu, Search } from 'lucide-react'
 import { pageMeta } from '../../lib/navigation'
 import { useCommandPalette } from '../ui/CommandPalette'
 import { LiveDot } from '../ui/Badge'
+import { useRealScan } from '../../data/scanContext'
 
 export function TopBar({ onOpenMenu }: { onOpenMenu: () => void }) {
   const location = useLocation()
   const meta = pageMeta[location.pathname] ?? { title: 'UBIORA', eyebrow: '' }
   const { open } = useCommandPalette()
+  const { orgName, assets } = useRealScan()
   const [alertsOpen, setAlertsOpen] = useState(false)
   const alertsRef = useRef<HTMLDivElement>(null)
+
+  const alerts = assets
+    .filter((asset) => asset.priority === 'Crítico' || asset.priority === 'Alto')
+    .slice(0, 3)
+
+  const initials =
+    orgName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0])
+      .join('')
+      .toUpperCase() || 'UB'
 
   useEffect(() => {
     if (!alertsOpen) return
@@ -33,7 +48,7 @@ export function TopBar({ onOpenMenu }: { onOpenMenu: () => void }) {
           <Menu className="size-4" />
         </button>
         <div className="hidden items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-dim sm:flex">
-          <span>Cobalto Pay</span>
+          <span>{orgName}</span>
           <ChevronRight className="size-3" />
           <span className="text-muted">{meta.title}</span>
         </div>
@@ -69,41 +84,33 @@ export function TopBar({ onOpenMenu }: { onOpenMenu: () => void }) {
             aria-expanded={alertsOpen}
           >
             <Bell className="size-3.5" />
-            <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-danger ring-2 ring-panel" />
-          </button>
+            <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-danger ring-2 ring-panel" />          </button>
 
           {alertsOpen && (
             <div className="absolute right-0 top-[calc(100%+8px)] w-[320px] overflow-hidden rounded-xl border border-line-strong bg-panel shadow-2xl shadow-black/60">
               <div className="flex items-center justify-between border-b border-line px-4 py-3">
                 <span className="label">Alertas</span>
                 <span className="rounded-full border border-danger/25 bg-danger/10 px-1.5 py-0.5 font-mono text-[9px] text-danger">
-                  3 nuevas
+                  {alerts.length} {alerts.length === 1 ? 'activo' : 'activos'}
                 </span>
               </div>
               <div className="divide-y divide-line">
-                {[
-                  {
-                    title: 'Nuevo certificado RSA-2048 en producción',
-                    detail: 'api.cobalto.mx · hace 2 h',
-                    tone: 'bg-danger',
-                  },
-                  {
-                    title: 'Dependencia con SHA-1 detectada',
-                    detail: 'kyc-pipeline · hace 5 h',
-                    tone: 'bg-warn',
-                  },
-                  {
-                    title: 'Escaneo trimestral completado',
-                    detail: '42 endpoints · ayer',
-                    tone: 'bg-acid',
-                  },
-                ].map((alert) => (
-                  <div key={alert.title} className="flex gap-3 px-4 py-3">
-                    <span className={`mt-1.5 size-1.5 shrink-0 rounded-full ${alert.tone}`} />
-                    <div>
-                      <p className="text-[11.5px] leading-snug text-paper">{alert.title}</p>
-                      <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.08em] text-dim">
-                        {alert.detail}
+                {alerts.length === 0 && (
+                  <div className="px-4 py-6 text-center text-[11px] leading-relaxed text-dim">
+                    Sin alertas. Ejecuta un descubrimiento para detectar activos de riesgo.
+                  </div>
+                )}
+                {alerts.map((asset) => (
+                  <div key={asset.id} className="flex gap-3 px-4 py-3">
+                    <span
+                      className={`mt-1.5 size-1.5 shrink-0 rounded-full ${
+                        asset.priority === 'Crítico' ? 'bg-danger' : 'bg-warn'
+                      }`}
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-[11.5px] leading-snug text-paper">{asset.name}</p>
+                      <p className="mt-1 truncate font-mono text-[9px] uppercase tracking-[0.08em] text-dim">
+                        {asset.algorithm} · {asset.environment} · {asset.priority}
                       </p>
                     </div>
                   </div>
@@ -111,9 +118,10 @@ export function TopBar({ onOpenMenu }: { onOpenMenu: () => void }) {
               </div>
               <button
                 type="button"
+                onClick={() => setAlertsOpen(false)}
                 className="w-full border-t border-line bg-ink-raised px-4 py-2.5 text-left text-[11px] text-muted transition-colors hover:text-paper"
               >
-                Ver todas las alertas
+                Ver inventario completo
               </button>
             </div>
           )}
@@ -121,13 +129,13 @@ export function TopBar({ onOpenMenu }: { onOpenMenu: () => void }) {
 
         <div className="ml-1 flex items-center gap-2.5 border-l border-line pl-3">
           <span className="relative grid size-7 place-items-center rounded-full border border-line-strong bg-surface font-mono text-[9px] text-paper">
-            CF
+            {initials}
             <span className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full border-2 border-ink bg-acid" />
           </span>
           <div className="hidden xl:block">
-            <p className="text-[11.5px] leading-none text-paper">Carlos Rivera</p>
+            <p className="text-[11.5px] leading-none text-paper">Equipo UBIORA</p>
             <p className="mt-1 font-mono text-[8.5px] uppercase tracking-[0.08em] text-dim">
-              Cobalto Pay
+              {orgName}
             </p>
           </div>
         </div>

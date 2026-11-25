@@ -1,5 +1,10 @@
 # 🚀 UBIORA — Guía de Ejecución y Demostración en Vivo para Clase de Innovación
 
+> ⚠️ **Documento histórico.** Algunas cifras y flujos de esta guía corresponden a versiones anteriores de la app (por ejemplo, el inventario precargado). La documentación vigente es:
+> - [`GUIA_USO_Y_EXPOSICION.md`](GUIA_USO_Y_EXPOSICION.md) — instalación, uso completo y guiones de exposición.
+> - [`GUIA_EMPRESA_Y_PROYECTO.md`](GUIA_EMPRESA_Y_PROYECTO.md) — la empresa y el proyecto explicados en simple.
+
+
 Este documento detalla **cómo ejecutar el proyecto**, **cómo hacer la demostración en vivo frente al profesor y compañeros**, y **el sustento teórico del PDF (`ProyectoFinal.pdf`)** que respalda cada pantalla.
 
 ---

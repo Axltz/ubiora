@@ -9,11 +9,21 @@ import type {
   ScanRun,
 } from './types'
 
-export const DEMO_NOW = new Date('2026-11-14T09:30:00')
-
 export const NIST_DEADLINE = new Date('2030-12-31T23:59:59')
 
-function priorityFor(score: number): RiskLevel {
+export function daysToDeadline(from: Date = new Date()): number {
+  return Math.max(0, Math.ceil((NIST_DEADLINE.getTime() - from.getTime()) / 86_400_000))
+}
+
+export function monthsToDeadline(from: Date = new Date()): number {
+  return Math.max(
+    0,
+    (NIST_DEADLINE.getFullYear() - from.getFullYear()) * 12 +
+      (NIST_DEADLINE.getMonth() - from.getMonth()),
+  )
+}
+
+export function priorityFor(score: number): RiskLevel {
   if (score >= 88) return 'Crítico'
   if (score >= 74) return 'Alto'
   if (score >= 56) return 'Medio'
@@ -775,44 +785,70 @@ function makeGeneratedAssets(count: number): Omit<CryptoAsset, 'priority'>[] {
   return result
 }
 
-const allAssets: CryptoAsset[] = [
-  ...curated.map((asset) => ({ ...asset, priority: priorityFor(asset.score) })),
-  ...makeGeneratedAssets(1284 - curated.length).map((asset) => ({
-    ...asset,
-    priority: priorityFor(asset.score),
-  })),
-].sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
-
-export const assets = allAssets
-
-export const stats = (() => {
-  const total = assets.length
-  const critical = assets.filter((asset) => asset.priority === 'Crítico').length
-  const high = assets.filter((asset) => asset.priority === 'Alto').length
-  const medium = assets.filter((asset) => asset.priority === 'Medio').length
-  const low = assets.filter((asset) => asset.priority === 'Bajo').length
-  const internet = assets.filter((asset) => asset.exposure === 'Internet').length
-  const prod = assets.filter((asset) => asset.environment === 'Producción').length
-  const core = assets.filter((asset) => asset.environment === 'Core bancario').length
-  const owners = new Set(assets.map((asset) => asset.owner)).size
-
-  return { total, critical, high, medium, low, internet, prod, core, owners }
-})()
-
-export const readiness = {
-  score: 34,
-  previous: 36,
-  label: 'Cripto-agilidad inicial',
-  description:
-    'La organización ya tiene inventario, pero la mayoría de los sistemas críticos dependen de RSA o ECDSA sin una ruta híbrida validada.',
-  signals: [
-    { label: 'Visibilidad', value: 78, note: '1,284 componentes indexados' },
-    { label: 'Agilidad', value: 22, note: '3 de 14 servicios con abstracción criptográfica' },
-    { label: 'Cobertura PQC', value: 11, note: '142 componentes con perfil híbrido' },
-  ],
+export function buildDemoAssets(): CryptoAsset[] {
+  return [
+    ...curated.map((asset) => ({ ...asset, priority: priorityFor(asset.score) })),
+    ...makeGeneratedAssets(1284 - curated.length).map((asset) => ({
+      ...asset,
+      priority: priorityFor(asset.score),
+    })),
+  ].sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
 }
 
-export const algorithmFamilies = (() => {
+/** Catálogo de referencia. Solo se carga si el usuario pulsa «Cargar ejemplo». */
+export const demoAssets = buildDemoAssets()
+
+export interface AssetStats {
+  total: number
+  critical: number
+  high: number
+  medium: number
+  low: number
+  internet: number
+  prod: number
+  core: number
+  owners: number
+  mitigated: number
+  inMigration: number
+  hybrid: number
+}
+
+export function computeStats(list: CryptoAsset[]): AssetStats {
+  const total = list.length
+  const count = (predicate: (asset: CryptoAsset) => boolean) => list.filter(predicate).length
+
+  return {
+    total,
+    critical: count((asset) => asset.priority === 'Crítico'),
+    high: count((asset) => asset.priority === 'Alto'),
+    medium: count((asset) => asset.priority === 'Medio'),
+    low: count((asset) => asset.priority === 'Bajo'),
+    internet: count((asset) => asset.exposure === 'Internet'),
+    prod: count((asset) => asset.environment === 'Producción'),
+    core: count((asset) => asset.environment === 'Core bancario'),
+    owners: new Set(list.map((asset) => asset.owner)).size,
+    mitigated: count((asset) => asset.status === 'Mitigado'),
+    inMigration: count((asset) => asset.status === 'En migración'),
+    hybrid: count(
+      (asset) =>
+        asset.algorithm.startsWith('ML-') ||
+        asset.algorithm.includes('AES-256') ||
+        asset.algorithm.toLowerCase().includes('híbrid'),
+    ),
+  }
+}
+
+export function isHybridAlgorithm(algorithm: string): boolean {
+  const value = algorithm.toLowerCase()
+  return (
+    value.startsWith('ml-') ||
+    value.includes('aes-256') ||
+    value.includes('híbrid') ||
+    value.includes('hybrid')
+  )
+}
+
+export function computeAlgorithmFamilies(list: CryptoAsset[]) {
   const palette: Record<string, string> = {
     RSA: 'var(--color-danger)',
     ECDSA: 'var(--color-warn)',
@@ -832,114 +868,87 @@ export const algorithmFamilies = (() => {
     return 'AES-256'
   }
   const counts = new Map<string, number>()
-  assets.forEach((asset) => {
+  list.forEach((asset) => {
     const key = family(asset.algorithm)
     counts.set(key, (counts.get(key) ?? 0) + 1)
   })
+
   return [...counts.entries()]
     .map(([name, count]) => ({
       name,
       count,
-      share: Math.round((count / assets.length) * 100),
+      share: list.length === 0 ? 0 : Math.round((count / list.length) * 100),
       color: palette[name] ?? '#6f7a71',
     }))
     .sort((a, b) => b.count - a.count)
-})()
+}
 
-export const environmentBreakdown = (() => {
+export function computeEnvironmentBreakdown(list: CryptoAsset[]) {
   const counts = new Map<Environment, number>()
-  assets.forEach((asset) => counts.set(asset.environment, (counts.get(asset.environment) ?? 0) + 1))
+  list.forEach((asset) => counts.set(asset.environment, (counts.get(asset.environment) ?? 0) + 1))
+
   return environments.map((name) => ({
     name,
     count: counts.get(name) ?? 0,
-    share: Math.round(((counts.get(name) ?? 0) / assets.length) * 100),
+    share: list.length === 0 ? 0 : Math.round(((counts.get(name) ?? 0) / list.length) * 100),
   }))
-})()
-
-export const exposureTrend = [
-  { month: 'Dic', findings: 1820, critical: 24 },
-  { month: 'Ene', findings: 1776, critical: 24 },
-  { month: 'Feb', findings: 1801, critical: 23 },
-  { month: 'Mar', findings: 1734, critical: 22 },
-  { month: 'Abr', findings: 1688, critical: 22 },
-  { month: 'May', findings: 1695, critical: 21 },
-  { month: 'Jun', findings: 1622, critical: 21 },
-  { month: 'Jul', findings: 1578, critical: 20 },
-  { month: 'Ago', findings: 1516, critical: 19 },
-  { month: 'Sep', findings: 1472, critical: 19 },
-  { month: 'Oct', findings: 1398, critical: 18 },
-  { month: 'Nov', findings: 1284, critical: 17 },
-]
-
-export const recentScans: ScanRun[] = [
-  {
-    id: 'SCN-0842',
-    target: 'Producción · 42 endpoints',
-    startedAt: '2026-11-14T08:38:00',
-    duration: '4m 12s',
-    findings: 1284,
-    critical: 17,
-    status: 'Completado',
-  },
-  {
-    id: 'SCN-0841',
-    target: 'Core bancario · repositorios',
-    startedAt: '2026-11-13T22:10:00',
-    duration: '6m 48s',
-    findings: 312,
-    critical: 8,
-    status: 'Con alertas',
-  },
-  {
-    id: 'SCN-0840',
-    target: 'Contenedores · staging',
-    startedAt: '2026-11-13T16:25:00',
-    duration: '2m 31s',
-    findings: 187,
-    critical: 2,
-    status: 'Completado',
-  },
-  {
-    id: 'SCN-0839',
-    target: 'Certificados · edge global',
-    startedAt: '2026-11-12T09:05:00',
-    duration: '1m 56s',
-    findings: 96,
-    critical: 3,
-    status: 'Completado',
-  },
-]
-
-export const topRisks = assets.slice(0, 8)
-
-export const kpis = {
-  readiness: readiness.score,
-  readinessDelta: readiness.score - readiness.previous,
-  critical: stats.critical,
-  criticalDelta: 3,
-  exposed: stats.internet,
-  total: stats.total,
-  daysToDeadline: Math.ceil((NIST_DEADLINE.getTime() - DEMO_NOW.getTime()) / 86_400_000),
-  lastScan: '14 nov 2026 · 08:42',
 }
 
-export const activityFeed = [
-  {
-    title: 'Certificado rotado en api.cobalto.mx',
-    detail: 'RSA-2048 → híbrido X25519MLKEM768',
-    time: 'hace 18 min',
-    tone: 'acid',
-  },
-  {
-    title: 'Nuevo hallazgo en kyc-pipeline',
-    detail: 'SHA-1 detectado en cadena de verificación',
-    time: 'hace 2 h',
-    tone: 'warn',
-  },
-  {
-    title: 'Alcance de escaneo ampliado',
-    detail: 'Se añadieron 12 repositorios de Core bancario',
-    time: 'hace 6 h',
-    tone: 'sky',
-  },
-]
+export function computeReadiness(list: CryptoAsset[]) {
+  const total = list.length
+
+  if (total === 0) {
+    return {
+      score: 0,
+      previous: 0,
+      label: 'Sin inventario',
+      description:
+        'Todavía no hay activos indexados. Ejecuta un descubrimiento o carga el ejemplo para calcular la postura de la organización.',
+      signals: [
+        { label: 'Visibilidad', value: 0, note: 'Sin componentes indexados' },
+        { label: 'Agilidad', value: 0, note: 'Sin datos de migración' },
+        { label: 'Cobertura PQC', value: 0, note: 'Sin perfil híbrido detectado' },
+      ],
+    }
+  }
+
+  const stats = computeStats(list)
+  const visibility = Math.min(100, Math.round(35 + Math.log10(total) * 22))
+  const agility = Math.round((100 * (stats.mitigated + stats.inMigration * 0.5)) / total)
+  const coverage = Math.round((100 * stats.hybrid) / total)
+  const score = Math.round(0.4 * visibility + 0.35 * agility + 0.25 * coverage)
+
+  const label =
+    score >= 75
+      ? 'Postura avanzada'
+      : score >= 50
+        ? 'En transición'
+        : score >= 25
+          ? 'Cripto-agilidad inicial'
+          : 'Exposición alta'
+
+  return {
+    score,
+    previous: score,
+    label,
+    description:
+      score >= 50
+        ? 'La organización ya tiene visibilidad y parte del inventario migrado. El siguiente paso es cerrar los servicios críticos que aún dependen de algoritmos clásicos.'
+        : 'La organización tiene inventario, pero la mayoría de los sistemas críticos dependen de RSA, ECDSA o Diffie-Hellman sin una ruta híbrida validada.',
+    signals: [
+      { label: 'Visibilidad', value: visibility, note: `${total.toLocaleString('es-MX')} componentes indexados` },
+      {
+        label: 'Agilidad',
+        value: agility,
+        note: `${stats.mitigated} mitigados · ${stats.inMigration} en migración`,
+      },
+      {
+        label: 'Cobertura PQC',
+        value: coverage,
+        note: `${stats.hybrid} componentes con perfil resistente`,
+      },
+    ],
+  }
+}
+
+export type { ScanRun }

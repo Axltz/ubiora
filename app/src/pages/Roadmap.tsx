@@ -12,15 +12,18 @@ import {
   Target,
   Users,
 } from 'lucide-react'
-import { DEMO_NOW } from '../data/assets'
+import { computeStats, monthsToDeadline } from '../data/assets'
 import { nistDeadlines, roadmapInitiatives, roadmapPhases, roadmapSummary } from '../data/roadmap'
 import type { RoadmapPhase } from '../data/types'
-import { cn } from '../lib/utils'
+import { cn, formatNumber } from '../lib/utils'
 import { downloadFile } from '../lib/download'
 import { LiveDot, Tag } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Panel, PanelHeader } from '../components/ui/Panel'
 import { useToast } from '../components/ui/Toast'
+import { useRealScan } from '../data/scanContext'
+
+const TODAY = new Date()
 
 const TIMELINE_START = 2026 * 12 + 6
 const TIMELINE_END = 2030 * 12 + 11
@@ -62,7 +65,7 @@ function phasePosition(phase: RoadmapPhase) {
 }
 
 const todayPosition =
-  ((DEMO_NOW.getFullYear() * 12 + DEMO_NOW.getMonth() + DEMO_NOW.getDate() / 30 - TIMELINE_START) /
+  ((TODAY.getFullYear() * 12 + TODAY.getMonth() + TODAY.getDate() / 30 - TIMELINE_START) /
     TOTAL_MONTHS) *
   100
 
@@ -76,8 +79,42 @@ const yearBoundaries = yearSegments.map((segment, index) => ({
 export function Roadmap() {
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { assets } = useRealScan()
   const [selectedId, setSelectedId] = useState('phase-1')
   const [filter, setFilter] = useState<'Todas' | 'Completado' | 'En curso' | 'Planificado'>('Todas')
+
+  const stats = useMemo(() => computeStats(assets), [assets])
+  const monthsRemaining = monthsToDeadline()
+  const kpiCards = [
+    {
+      label: 'Fases del plan',
+      value: String(roadmapPhases.length),
+      note: 'plan de referencia NIST',
+      icon: CheckCircle2,
+      bar: 100,
+    },
+    {
+      label: 'Ventana restante',
+      value: `${monthsRemaining} m`,
+      note: 'hasta el plazo de 2030',
+      icon: CalendarClock,
+      bar: Math.min(100, Math.round((monthsRemaining / 54) * 100)),
+    },
+    {
+      label: 'Críticos detectados',
+      value: formatNumber(stats.critical),
+      note: stats.total ? `de ${formatNumber(stats.total)} activos` : 'sin inventario todavía',
+      icon: Target,
+      bar: stats.total ? Math.round((stats.critical / stats.total) * 100) : 0,
+    },
+    {
+      label: 'Reducción objetivo',
+      value: '100%',
+      note: 'meta de cierre regulatorio',
+      icon: ShieldCheck,
+      bar: 100,
+    },
+  ]
 
   const selectedPhase = roadmapPhases.find((phase) => phase.id === selectedId) ?? roadmapPhases[0]
   const filteredInitiatives = useMemo(
@@ -102,9 +139,9 @@ export function Roadmap() {
     const csv = [header, ...rows]
       .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(','))
       .join('\n')
-    downloadFile(`\uFEFF${csv}`, 'cobalto-pay-hoja-de-ruta-2026.csv', 'text/csv;charset=utf-8')
+    downloadFile(`\uFEFF${csv}`, 'ubiora-hoja-de-ruta.csv', 'text/csv;charset=utf-8')
     toast('Hoja de ruta exportada', {
-      detail: '6 fases y 11 iniciativas incluidas en el archivo.',
+      detail: '6 fases y 11 iniciativas de referencia incluidas en el archivo.',
     })
   }
 
@@ -124,8 +161,8 @@ export function Roadmap() {
             Un plan que cabe <span className="text-muted">en el calendario.</span>
           </h1>
           <p className="mt-4 max-w-[580px] text-[13px] leading-relaxed text-muted">
-            Seis fases, once iniciativas y una ruta verificable hacia 2030. Cada movimiento reduce
-            riesgo medible sin detener la operación del banco.
+            Seis fases, once iniciativas y una ruta verificable hacia 2030. Es un plan de
+            referencia: cada movimiento reduce riesgo medible sin detener la operación.
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -143,36 +180,7 @@ export function Roadmap() {
       </div>
 
       <div className="mt-6 grid grid-cols-2 overflow-hidden rounded-[14px] border border-line bg-panel xl:grid-cols-4">
-        {[
-          {
-            label: 'Progreso del plan',
-            value: `${roadmapSummary.progress}%`,
-            note: '1 de 6 fases completada',
-            icon: CheckCircle2,
-            bar: roadmapSummary.progress,
-          },
-          {
-            label: 'Ventana restante',
-            value: `${roadmapSummary.monthsRemaining} m`,
-            note: 'hasta el plazo de 2030',
-            icon: CalendarClock,
-            bar: Math.round((38 / 54) * 100),
-          },
-          {
-            label: 'Críticos por cerrar',
-            value: String(roadmapSummary.currentCritical),
-            note: 'de 17 hallazgos iniciales',
-            icon: Target,
-            bar: 100,
-          },
-          {
-            label: 'Riesgo residual 2030',
-            value: `${roadmapSummary.projectedResidualRisk}%`,
-            note: 'objetivo después del cierre',
-            icon: ShieldCheck,
-            bar: roadmapSummary.projectedResidualRisk,
-          },
-        ].map((item, index) => {
+        {kpiCards.map((item, index) => {
           const Icon = item.icon
           return (
             <div

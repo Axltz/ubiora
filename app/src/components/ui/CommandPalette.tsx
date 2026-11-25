@@ -25,7 +25,6 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useTour } from '../tour/ProductTour'
-import { useToast } from './Toast'
 
 type Command = {
   id: string
@@ -51,7 +50,6 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
   const [selected, setSelected] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
-  const { toast } = useToast()
   const { start: startTour } = useTour()
 
   const open = useCallback(() => {
@@ -138,18 +136,15 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
       },
       {
         id: 'export',
-        label: 'Exportar CBOM en CycloneDX',
-        hint: 'JSON',
+        label: 'Exportar CBOM (CycloneDX o CSV)',
+        hint: 'Inventario',
         group: 'Acciones',
         icon: Download,
-        keywords: 'exportar json cyclonedx',
-        action: () =>
-          toast('CBOM exportado', {
-            detail: 'Se generó cobalto-pay-cbom-2026-11-14.json con 1,284 componentes.',
-          }),
+        keywords: 'exportar json csv cyclonedx cbom',
+        action: () => navigate('/inventario'),
       },
     ],
-    [navigate, startTour, toast],
+    [navigate, startTour],
   )
 
   const filtered = useMemo(() => {

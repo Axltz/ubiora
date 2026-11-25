@@ -11,7 +11,7 @@ import {
   Search,
   X,
 } from 'lucide-react'
-import { environmentBreakdown } from '../data/assets'
+import { computeEnvironmentBreakdown } from '../data/assets'
 import { useRealScan } from '../data/scanContext'
 import type { CryptoAsset } from '../data/types'
 import { formatNumber } from '../lib/utils'
@@ -28,7 +28,7 @@ const PAGE_SIZE = 14
 export function Inventory() {
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { allAssets, customAssets } = useRealScan()
+  const { allAssets, orgName, isDemo, loadDemo, clearAll } = useRealScan()
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
@@ -52,6 +52,11 @@ export function Inventory() {
 
   const algorithmOptions = useMemo(
     () => ['Todos', ...Array.from(new Set(allAssets.map((asset) => asset.algorithm))).sort()],
+    [allAssets],
+  )
+
+  const environmentOptions = useMemo(
+    () => ['Todos', ...computeEnvironmentBreakdown(allAssets).map((item) => item.name)],
     [allAssets],
   )
 
@@ -110,11 +115,11 @@ export function Inventory() {
     const bom = {
       bomFormat: 'CycloneDX',
       specVersion: '1.7',
-      serialNumber: 'urn:uuid:4f1c9f6a-0e2b-4fd2-8b5e-cobalto-pay',
+      serialNumber: `urn:uuid:${crypto.randomUUID()}`,
       version: 1,
       metadata: {
         timestamp: new Date().toISOString(),
-        component: { type: 'application', name: 'Cobalto Pay', version: '2026.11' },
+        component: { type: 'application', name: orgName, version: '2026.11' },
         tools: { components: [{ type: 'application', name: 'UBIORA Discovery Engine', version: '1.0' }] },
       },
       components: source.map((asset) => ({
@@ -204,11 +209,17 @@ export function Inventory() {
           <div className="mb-4 flex flex-wrap items-center gap-2.5">
             <Tag tone="acid">CycloneDX 1.7 CBOM</Tag>
             <span className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-dim">
-              {formatNumber(allAssets.length)} activos indexados · {allAssets.filter((a) => a.priority === 'Crítico').length} críticos
+              {formatNumber(allAssets.length)} activos indexados ·{' '}
+              {allAssets.filter((asset) => asset.priority === 'Crítico').length} críticos
             </span>
-            {customAssets.length > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-md border border-acid/30 bg-acid/10 px-2 py-0.5 text-[10px] text-acid font-medium">
-                <Globe className="size-2.5" /> {customAssets.length} escaneados en vivo
+            {isDemo && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn">
+                <Globe className="size-2.5" /> Catálogo de ejemplo
+              </span>
+            )}
+            {!isDemo && allAssets.length > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-acid/30 bg-acid/10 px-2 py-0.5 text-[10px] font-medium text-acid">
+                <Globe className="size-2.5" /> {allAssets.length} activos propios
               </span>
             )}
           </div>
@@ -220,6 +231,23 @@ export function Inventory() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {allAssets.length === 0 && (
+            <Button variant="outline" onClick={loadDemo} icon={<Radar className="size-3.5" />}>
+              Cargar ejemplo
+            </Button>
+          )}
+          {allAssets.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                clearAll()
+                toast('Inventario vaciado', { detail: 'El sistema volvió a cero.', tone: 'info' })
+              }}
+              icon={<X className="size-3.5" />}
+            >
+              Vaciar
+            </Button>
+          )}
           <Button variant="secondary" icon={<Download className="size-3.5" />} onClick={exportCbom}>
             Exportar CBOM (JSON)
           </Button>
@@ -265,7 +293,7 @@ export function Inventory() {
           <FilterSelect
             label="Ambiente"
             value={environment}
-            options={['Todos', ...environmentBreakdown.map((item) => item.name)]}
+            options={environmentOptions}
             onChange={setEnvironment}
           />
           <FilterSelect
@@ -331,9 +359,46 @@ export function Inventory() {
                 <tr>
                   <td colSpan={9}>
                     <EmptyState
-                      title="No se encontraron componentes"
-                      description="Prueba cambiando los términos de búsqueda o limpiando los filtros seleccionados."
-                      action={<Button size="sm" onClick={clearFilters}>Limpiar filtros</Button>}
+                      title={
+                        allAssets.length === 0
+                          ? 'Tu inventario está vacío'
+                          : 'No se encontraron componentes'
+                      }
+                      description={
+                        allAssets.length === 0
+                          ? 'Ejecuta un descubrimiento para analizar endpoints reales o carga el catálogo de ejemplo para explorar la interfaz.'
+                          : 'Prueba cambiando los términos de búsqueda o limpiando los filtros seleccionados.'
+                      }
+                      action={
+                        allAssets.length === 0 ? (
+                          <div className="flex flex-wrap items-center justify-center gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => navigate('/descubrimiento')}
+                              icon={<Radar className="size-3.5" />}
+                            >
+                              Ejecutar descubrimiento
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                loadDemo()
+                                toast('Datos de ejemplo cargados', {
+                                  detail: 'Puedes vaciarlos cuando quieras.',
+                                  tone: 'info',
+                                })
+                              }}
+                            >
+                              Cargar ejemplo
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button size="sm" onClick={clearFilters}>
+                            Limpiar filtros
+                          </Button>
+                        )
+                      }
                     />
                   </td>
                 </tr>

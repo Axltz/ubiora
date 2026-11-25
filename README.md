@@ -4,7 +4,7 @@
 
 UBIORA permite a una empresa descubrir qué algoritmos criptográficos usa realmente, priorizar los activos que representan mayor riesgo frente a la computación cuántica y convertir ese inventario en una hoja de ruta de migración alineada a los estándares PQC del NIST.
 
-> MVP académico para la materia de **Innovación y Tecnología**. Los datos, escaneos y hallazgos son simulados de forma determinista para demostrar el producto sin depender de infraestructura real.
+> MVP académico para la materia de **Innovación y Tecnología**. La aplicación **arranca vacía**: el inventario se construye con escaneos reales o se genera un conjunto de demostración solo cuando el usuario pulsa **“Cargar ejemplo”**.
 
 ![Resumen de exposición de UBIORA](docs/assets/screenshots/overview.png)
 
@@ -18,10 +18,10 @@ UBIORA no vende la migración completa: vende **visibilidad y priorización**. E
 
 | Módulo | Qué demuestra |
 | --- | --- |
-| **Resumen de exposición** | Score de readiness, reloj regulatorio, tendencia de hallazgos, mezcla de algoritmos y cola de prioridad. |
-| **Inventario CBOM** | 1,284 componentes filtrables por ambiente, algoritmo y prioridad; selección masiva y exportación CSV / CycloneDX. |
-| **Descubrimiento** | Configuración de alcance, consola de escaneo en vivo y resumen de hallazgos al terminar. |
-| **Hoja de ruta** | Gantt 2026–2030, seis fases, entregables, dependencias e iniciativas priorizadas. |
+| **Resumen de exposición** | KPIs calculados desde los activos reales: score de readiness, reloj regulatorio, distribución de prioridades, mezcla de algoritmos y estado de escaneos. |
+| **Inventario CBOM** | Componentes filtrables por ambiente, algoritmo y prioridad; selección masiva y exportación CSV / CycloneDX. |
+| **Descubrimiento** | Escaneo TLS real (backend Python opcional o fallback del navegador), consola en vivo y resumen de hallazgos. |
+| **Hoja de ruta** | Plan genérico alineado a NIST: fases, entregables, dependencias e iniciativas priorizadas. |
 | **Informe ejecutivo** | Documento editorial imprimible con hallazgos, decisiones solicitadas y metodología del scoring. |
 | **Cómo funciona** | Guía en lenguaje claro con el flujo del producto, glosario mínimo, mapa de pantallas y guion de demo. |
 
@@ -36,7 +36,7 @@ La interfaz incluye además un **recorrido guiado** que lleva por las cinco pant
 - **Lucide** para iconografía
 - **Geist** / **Geist Mono** / **Newsreader** auto-hospedadas (sin dependencias de red en la demo)
 
-No hay backend en esta fase: el motor de descubrimiento y el scoring están simulados en el cliente con datos deterministas. La arquitectura para conectar el motor real está documentada en [`docs/03-arquitectura.md`](docs/03-arquitectura.md).
+El escaneo TLS real vive en Python (`scanner/`): `scanner/server.py` expone una API local en `http://localhost:8080/api/scan` y `scanner/engine.py` calcula el riesgo y genera el CBOM. Si el backend no está activo, la interfaz cae a un generador en el navegador para no romper la demo. La arquitectura está documentada en [`docs/03-arquitectura.md`](docs/03-arquitectura.md).
 
 ## Desarrollo local
 
@@ -75,6 +75,9 @@ npm run lint       # Oxlint
 ├── docs/                         # Documentación de producto e ingeniería
 │   ├── adr/                      # Architecture Decision Records
 │   └── assets/screenshots/       # Capturas para documentación
+├── scanner/                      # Motor de escaneo TLS en Python + API local (puerto 8080)
+├── GUIA_USO_Y_EXPOSICION.md      # Guía de uso y exposición desde cero
+├── GUIA_EMPRESA_Y_PROYECTO.md    # Empresa y proyecto explicados en simple
 ├── ProyectoFinal.pdf             # Memoria original del proyecto
 └── README.md
 ```
@@ -96,15 +99,21 @@ npm run lint       # Oxlint
 
 ## Datos de demostración
 
-El cliente ficticio es **Cobalto Pay**, una fintech mexicana de banca digital. El inventario se genera con una semilla determinista para que la demo sea reproducible:
+Por defecto **no hay datos precargados**. El estado inicial es un espacio de trabajo vacío con nombre de organización genérico.
 
-- 1,284 componentes criptográficos.
-- 17 hallazgos críticos.
-- 4 ambientes: Producción, Core bancario, Staging y Desarrollo.
-- 17 propietarios y 7 familias de algoritmos.
-- Fecha de corte: **14 de noviembre de 2026**.
+- El inventario se llena al ejecutar un **escaneo** en la pantalla de Descubrimiento.
+- Si no hay backend Python, el navegador genera los activos a partir del dominio escaneado.
+- Para una demo sin red existe **“Cargar ejemplo”**, que genera un conjunto determinista de assets de muestra.
+- **“Vaciar”** elimina todo y regresa al estado inicial.
 
-Ningún dato corresponde a una empresa real.
+Todo se guarda en `localStorage` (`ubiora.assets.v1`, `ubiora.scans.v1`, `ubiora.org.v1`, `ubiora.demo.v1`). Ningún dato corresponde a una empresa real.
+
+## Guías de uso y exposición
+
+| Documento | Contenido |
+| --- | --- |
+| [`GUIA_USO_Y_EXPOSICION.md`](GUIA_USO_Y_EXPOSICION.md) | Instalación, recorrido completo desde cero, funcionalidades pantalla por pantalla, guiones de exposición de 10–12 y 5 minutos, resolución de problemas y preguntas del jurado. |
+| [`GUIA_EMPRESA_Y_PROYECTO.md`](GUIA_EMPRESA_Y_PROYECTO.md) | La empresa y el proyecto explicados en lenguaje sencillo: problema, glosario, mercado, competencia, precios, proyecciones, FODA, fases y conexión con la app. |
 
 ## Equipo
 

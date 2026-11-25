@@ -33,7 +33,6 @@ export const navSections: NavSection[] = [
         shortLabel: 'Inventario',
         to: '/inventario',
         icon: PackageSearch,
-        badge: '1,284',
       },
     ],
   },
