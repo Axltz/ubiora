@@ -26,3 +26,9 @@ Thumbs.db
 # Local tooling
 .playwright/
 coverage/
+
+# Generated scripts & PDFs
+generar_*.py
+*.pdf
+!ProyectoFinal.pdf
+
