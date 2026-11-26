@@ -96,7 +96,7 @@ export function Discovery() {
 
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 6000)
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
 
       let scannedAssets: CryptoAsset[] = []
       let usedBackend = false

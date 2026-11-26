@@ -10,6 +10,7 @@ import ssl
 import json
 import uuid
 import datetime
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Optional
 
 try:
@@ -187,7 +188,7 @@ def clean_hostname(target: str):
             port = 443
     return s.strip(), port
 
-def inspect_tls_endpoint(host: str, port: int = 443, timeout: float = 8.0) -> Optional[Dict[str, Any]]:
+def inspect_tls_endpoint(host: str, port: int = 443, timeout: float = 4.0) -> Optional[Dict[str, Any]]:
     """Inspecciona un endpoint real mediante socket SSL en vivo extrayendo la llave real con cryptography."""
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
@@ -260,88 +261,91 @@ def inspect_tls_endpoint(host: str, port: int = 443, timeout: float = 8.0) -> Op
             'status': 'ERROR'
         }
 
-def run_real_discovery(targets: List[str]) -> List[Dict[str, Any]]:
-    results = []
-    cbom_idx = 1
-    
-    for target in targets:
-        host, port = clean_hostname(target)
-        if not host:
-            continue
-            
-        data = inspect_tls_endpoint(host, port)
-        if not data or data.get('status') != 'ALCANZABLE':
-            # Si el host no responde por DNS o red, marcar error real
-            algo = "Inaccesible / Fallo de red"
-            keysize = "N/A"
-            cipher = "None"
-            proto = "N/A"
-            sig_algo = "N/A"
-            days_valid = 0
-            err_msg = data.get('error', 'Host unreachable') if data else 'Timeout'
-            score = 15
-            priority = 'Bajo'
-            shelf_life = 0
-            criticality = 1
-            sensitivity = 'Bajo'
-            exposure = 'Internet'
-            effort = 'Bajo'
-            target_year = 'N/A'
-            recom = f"Host no alcanzable: {err_msg}. Verificar conectividad y puerto 443."
-        else:
-            algo = data['algorithm']
-            keysize = data['key_size']
-            cipher = data['cipher']
-            proto = data['protocol']
-            sig_algo = data.get('sig_algo', 'sha256')
-            days_valid = data.get('days_valid', 90)
+def _process_single_target(target: str, cbom_idx: int) -> Optional[Dict[str, Any]]:
+    host, port = clean_hostname(target)
+    if not host:
+        return None
+        
+    data = inspect_tls_endpoint(host, port)
+    if not data or data.get('status') != 'ALCANZABLE':
+        algo = "Inaccesible / Fallo de red"
+        keysize = "N/A"
+        cipher = "None"
+        proto = "N/A"
+        sig_algo = "N/A"
+        days_valid = 0
+        err_msg = data.get('error', 'Host unreachable') if data else 'Timeout'
+        score = 15
+        priority = 'Bajo'
+        shelf_life = 0
+        criticality = 1
+        sensitivity = 'Bajo'
+        exposure = 'Internet'
+        effort = 'Bajo'
+        target_year = 'N/A'
+        recom = f"Host no alcanzable: {err_msg}. Verificar conectividad y puerto 443."
+    else:
+        algo = data['algorithm']
+        keysize = data['key_size']
+        cipher = data['cipher']
+        proto = data['protocol']
+        sig_algo = data.get('sig_algo', 'sha256')
+        days_valid = data.get('days_valid', 90)
 
-            # Evaluacion dinamica con la formula teorica
-            risk_info = calculate_dynamic_risk(
-                host=host,
-                algorithm=algo,
-                key_size_str=keysize,
-                protocol=proto,
-                cipher=cipher,
-                sig_algo=sig_algo,
-                days_to_expire=days_valid
-            )
-            score = risk_info['score']
-            priority = risk_info['priority']
-            sensitivity = risk_info['sensitivity']
-            shelf_life = risk_info['shelfLife']
-            criticality = risk_info['criticality']
-            exposure = risk_info['exposure']
-            effort = risk_info['effort']
-            target_year = risk_info['target']
-            recom = risk_info['recommendation']
-        
-        asset = {
-            'id': f"CBOM-LIVE-{cbom_idx:03d}",
-            'name': host,
-            'kind': 'Endpoint TLS',
-            'algorithm': algo,
-            'keySize': keysize,
-            'location': f"{host}:{port} ({proto})",
-            'environment': 'Producción',
-            'sensitivity': sensitivity,
-            'shelfLife': shelf_life,
-            'exposure': exposure,
-            'criticality': criticality,
-            'score': score,
-            'priority': priority,
-            'owner': 'Infraestructura / Redes',
-            'lastSeen': datetime.datetime.now().isoformat(),
-            'recommendation': recom,
-            'target': target_year,
-            'effort': effort,
-            'status': 'Pendiente',
-            'cipher': cipher,
-            'protocol': proto
-        }
-        results.append(asset)
-        cbom_idx += 1
-        
+        risk_info = calculate_dynamic_risk(
+            host=host,
+            algorithm=algo,
+            key_size_str=keysize,
+            protocol=proto,
+            cipher=cipher,
+            sig_algo=sig_algo,
+            days_to_expire=days_valid
+        )
+        score = risk_info['score']
+        priority = risk_info['priority']
+        sensitivity = risk_info['sensitivity']
+        shelf_life = risk_info['shelfLife']
+        criticality = risk_info['criticality']
+        exposure = risk_info['exposure']
+        effort = risk_info['effort']
+        target_year = risk_info['target']
+        recom = risk_info['recommendation']
+    
+    return {
+        'id': f"CBOM-LIVE-{cbom_idx:03d}",
+        'name': host,
+        'kind': 'Endpoint TLS',
+        'algorithm': algo,
+        'keySize': keysize,
+        'location': f"{host}:{port} ({proto})",
+        'environment': 'Producción',
+        'sensitivity': sensitivity,
+        'shelfLife': shelf_life,
+        'exposure': exposure,
+        'criticality': criticality,
+        'score': score,
+        'priority': priority,
+        'owner': 'Infraestructura / Redes',
+        'lastSeen': datetime.datetime.now().isoformat(),
+        'recommendation': recom,
+        'target': target_year,
+        'effort': effort,
+        'status': 'Pendiente',
+        'cipher': cipher,
+        'protocol': proto
+    }
+
+def run_real_discovery(targets: List[str]) -> List[Dict[str, Any]]:
+    cleaned_targets = [t for t in targets if t.strip()]
+    results = []
+    
+    with ThreadPoolExecutor(max_workers=min(8, max(1, len(cleaned_targets)))) as executor:
+        futures = [executor.submit(_process_single_target, target, idx + 1) for idx, target in enumerate(cleaned_targets)]
+        for f in futures:
+            res = f.result()
+            if res:
+                results.append(res)
+                
     return results
 
 def generate_cyclonedx_cbom(assets: List[Dict[str, Any]], org_name: str = "Demo Cliente") -> Dict[str, Any]:

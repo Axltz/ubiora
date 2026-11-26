@@ -4,7 +4,7 @@ Permite al usuario ingresar endpoints o repositorios reales en el navegador,
 escanearlos con sockets TLS reales, y ver el CBOM generado instantaneamente.
 """
 
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import json
 import urllib.parse
 from engine import run_real_discovery, generate_cyclonedx_cbom
@@ -70,7 +70,7 @@ class UbioraApiHandler(BaseHTTPRequestHandler):
 
 def run_server(port=8080):
     server_address = ('', port)
-    httpd = HTTPServer(server_address, UbioraApiHandler)
+    httpd = ThreadingHTTPServer(server_address, UbioraApiHandler)
     print(f"[*] Servidor de descubrimiento UBIORA activo en http://localhost:{port}")
     try:
         httpd.serve_forever()
