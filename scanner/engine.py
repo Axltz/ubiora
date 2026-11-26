@@ -103,19 +103,38 @@ def inspect_tls_endpoint(host: str, port: int = 443, timeout: float = 4.0) -> Op
             'status': 'ERROR'
         }
 
+def clean_hostname(target: str):
+    """Limpia URLs como https://github.com o ://github.com para extraer solo el host y puerto."""
+    s = target.strip()
+    if '://' in s:
+        s = s.split('://', 1)[1]
+    elif s.startswith('//'):
+        s = s[2:]
+    elif s.startswith(':'):
+        s = s.lstrip(':').lstrip('/')
+    
+    # Quitar paths como /api/v1
+    if '/' in s:
+        s = s.split('/', 1)[0]
+    
+    port = 443
+    if ':' in s:
+        parts = s.split(':', 1)
+        s = parts[0]
+        try:
+            port = int(parts[1])
+        except ValueError:
+            port = 443
+    return s.strip(), port
+
 def run_real_discovery(targets: List[str]) -> List[Dict[str, Any]]:
     results = []
     cbom_idx = 1
     
     for target in targets:
-        host = target.strip()
+        host, port = clean_hostname(target)
         if not host:
             continue
-        port = 443
-        if ':' in host:
-            parts = host.split(':')
-            host = parts[0]
-            port = int(parts[1])
             
         data = inspect_tls_endpoint(host, port)
         if not data or data.get('status') != 'ALCANZABLE':

@@ -69,7 +69,14 @@ export function Discovery() {
   const executeLiveScan = async () => {
     const hosts = targets
       .split('\n')
-      .map((target) => target.trim())
+      .map((target) => {
+        let t = target.trim()
+        if (t.includes('://')) t = t.split('://')[1]
+        else if (t.startsWith('//')) t = t.slice(2)
+        else if (t.startsWith(':')) t = t.replace(/^:+/, '').replace(/^\/+/, '')
+        if (t.includes('/')) t = t.split('/')[0]
+        return t.trim()
+      })
       .filter(Boolean)
 
     if (hosts.length === 0) {
